@@ -16,7 +16,8 @@ func (s *APIServer) handleRegister(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-	_, err := s.db.GetUserByEmail(req.Email)
+    // Check if email already exists
+    _, err := s.db.GetUserByEmail(req.Email)
     if err == nil {
         http.Error(w, "Email already registered", http.StatusBadRequest)
         return
@@ -32,7 +33,7 @@ func (s *APIServer) handleRegister(w http.ResponseWriter, r *http.Request) {
         return
     }
 
-    token, err := s.generateJWT(user)  
+    token, err := s.generateJWT(user)
     if err != nil {
         http.Error(w, "Failed to generate token", http.StatusInternalServerError)
         return

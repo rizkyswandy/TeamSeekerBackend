@@ -61,38 +61,51 @@ func NewAPIServer(db Database, jwtSecret []byte) *APIServer {
     return server
 }
 
+// In setupRoutes()
 func (s *APIServer) setupRoutes() {
-
-	s.router.Use(middleware.Logger)
+    s.router.Use(middleware.Logger)
     s.router.Use(middleware.CORS)
 
-	s.router.HandleFunc("/api/auth/register", s.handleRegister).Methods("POST")
+    // Public routes (authentication)
+    s.router.HandleFunc("/api/auth/register", s.handleRegister).Methods("POST")
     s.router.HandleFunc("/api/auth/login", s.handleLogin).Methods("POST")
 
-	s.router.HandleFunc("/api/profiles", s.handleCreateProfile).Methods("POST")
-	s.router.HandleFunc("/api/profiles", s.handleGetAllProfiles).Methods("GET")
-	s.router.HandleFunc("/api/profiles/search", s.handleSearchProfiles).Methods("GET")
-	s.router.HandleFunc("/api/profiles/{id}", s.handleGetProfile).Methods("GET")
-	s.router.HandleFunc("/api/profiles/{id}", s.handleUpdateProfile).Methods("PUT")
-	s.router.HandleFunc("/api/profiles/{id}", s.handleDeleteProfile).Methods("DELETE")
+    // Protected routes
+    api := s.router.PathPrefix("/api").Subrouter()
+    api.Use(middleware.Auth(s.jwtSecret))
+
+    // Profile routes (all require authentication)
+    api.HandleFunc("/profiles", s.handleCreateProfile).Methods("POST")
+    api.HandleFunc("/profiles", s.handleGetAllProfiles).Methods("GET")
+    api.HandleFunc("/profiles/search", s.handleSearchProfiles).Methods("GET")
+    api.HandleFunc("/profiles/{id}", s.handleGetProfile).Methods("GET")
+    api.HandleFunc("/profiles/{id}", s.handleUpdateProfile).Methods("PUT")
+    api.HandleFunc("/profiles/{id}", s.handleDeleteProfile).Methods("DELETE")
 }
 
-func (s *APIServer) handleCreateProfile(writer http.ResponseWriter, request *http.Request) {
-	var newProfile StudentProfile
-	if err := json.NewDecoder(request.Body).Decode(&newProfile); err != nil {
-		http.Error(writer, "Invalid request body", http.StatusBadRequest)
-		return
-	}
+func (s *APIServer) handleCreateProfile(w http.ResponseWriter, r *http.Request) {
+    claims, err := middleware.GetUserFromContext(r.Context())
+    if err != nil {
+        http.Error(w, "Unauthorized", http.StatusUnauthorized)
+        return
+    }
 
-	if err := s.db.CreateProfile(&newProfile); err != nil {
-		http.Error(writer, "Failed to create profile", http.StatusInternalServerError)
-		return
-	}
+    var newProfile StudentProfile
+    if err := json.NewDecoder(r.Body).Decode(&newProfile); err != nil {
+        http.Error(w, "Invalid request body", http.StatusBadRequest)
+        return
+    }
 
-	writer.Header().Set("Content-Type", "application/json")
-	writer.WriteHeader(http.StatusCreated)
+    newProfile.Email = claims.Email
 
-	json.NewEncoder(writer).Encode(newProfile)
+    if err := s.db.CreateProfile(&newProfile); err != nil {
+        http.Error(w, "Failed to create profile", http.StatusInternalServerError)
+        return
+    }
+
+    w.Header().Set("Content-Type", "application/json")
+    w.WriteHeader(http.StatusCreated)
+    json.NewEncoder(w).Encode(newProfile)
 }
 
 func (s *APIServer) handleGetProfile(w http.ResponseWriter, r *http.Request) {
@@ -119,11 +132,29 @@ func (s *APIServer) handleGetProfile(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *APIServer) handleUpdateProfile(w http.ResponseWriter, r *http.Request) {
+    claims, err := middleware.GetUserFromContext(r.Context())
+    if err != nil {
+        http.Error(w, "Unauthorized", http.StatusUnauthorized)
+        return
+    }
+
     vars := mux.Vars(r)
     id := vars["id"]
 
-    if id == "" {
-        http.Error(w, "Profile ID is required", http.StatusBadRequest)
+    // Get existing profile
+    existingProfile, err := s.db.GetProfile(id)
+    if err != nil {
+        if err.Error() == "profile not found" {
+            http.Error(w, "Profile not found", http.StatusNotFound)
+            return
+        }
+        http.Error(w, "Failed to get profile", http.StatusInternalServerError)
+        return
+    }
+
+    // Verify ownership
+    if existingProfile.Email != claims.Email {
+        http.Error(w, "Unauthorized to modify this profile", http.StatusForbidden)
         return
     }
 
@@ -133,17 +164,15 @@ func (s *APIServer) handleUpdateProfile(w http.ResponseWriter, r *http.Request) 
         return
     }
 
+    // Ensure email cannot be changed
+    updatedProfile.Email = claims.Email
+
     if err := s.db.UpdateProfile(id, &updatedProfile); err != nil {
-        if err.Error() == "profile not found" {
-            http.Error(w, "Profile not found", http.StatusNotFound)
-            return
-        }
         http.Error(w, "Failed to update profile", http.StatusInternalServerError)
         return
     }
 
     w.Header().Set("Content-Type", "application/json")
-    w.WriteHeader(http.StatusOK)
     json.NewEncoder(w).Encode(updatedProfile)
 }
 
