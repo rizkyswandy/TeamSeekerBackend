@@ -195,7 +195,7 @@ func (s *APIServer) handleDeleteProfile(writer http.ResponseWriter, request *htt
 func (s *APIServer) handleGetAllProfiles(writer http.ResponseWriter, request *http.Request) {
 	profiles, err := s.db.GetAllProfiles()
 	if err != nil {
-		http.Error(writer, "Failed to fetch profiels!", http.StatusInternalServerError)
+		http.Error(writer, "Failed to fetch profiles!", http.StatusInternalServerError)
 		return
 	}
 

@@ -171,8 +171,10 @@ func (p *PostgresDB) DeleteProfile(id string) error {
 
 func (p *PostgresDB) GetAllProfiles() ([]api.StudentProfile, error) {
 	query := `
-		SELECT *
-		FROM student_profiles`
+		SELECT id, name, email, faculty, field_of_study, semester, 
+               skills, focus, is_available, created_at, updated_at
+        FROM student_profiles
+        ORDER BY created_at DESC`
 
 	rows, err := p.db.Query(query)
 	if err != nil {
