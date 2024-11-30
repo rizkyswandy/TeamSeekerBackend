@@ -1,23 +1,24 @@
 package main
 
-import(
-	"log"
-	"github.com/rizkyswandy/TeamSeekerBackend/api"
-	"github.com/rizkyswandy/TeamSeekerBackend/internal/database/postgres"
+import (
+    "log"
+    "github.com/rizkyswandy/TeamSeekerBackend/api"
+    "github.com/rizkyswandy/TeamSeekerBackend/internal/config"
+    "github.com/rizkyswandy/TeamSeekerBackend/internal/database/postgres"
 )
 
 func main() {
-	connStr := "postgres://ilb:@localhost:5432/team_seeker?sslmode=disable"
+    cfg := config.LoadConfig()
 
-	db, err := postgres.NewPostgresDB(connStr)
-	if err != nil {
-		log.Fatalf("Failed to initialized database : %v", err)
-	}
+    db, err := postgres.NewPostgresDB(cfg.DBConnString)
+    if err != nil {
+        log.Fatal(err)
+    }
 
-	server :=  api.NewAPIServer(db)
+    server := api.NewAPIServer(db, cfg.JWTSecret)
 
-	log.Println("Server starting on port 8080")
-	if err := server.Start(":8080"); err != nil {
-		log.Fatalf("Server failed to start: %v", err)
-	}
+    log.Printf("Server starting on port %s", cfg.ServerPort)
+    if err := server.Start(":" + cfg.ServerPort); err != nil {
+        log.Fatal(err)
+    }
 }

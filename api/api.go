@@ -11,6 +11,7 @@ import (
 type APIServer struct {
 	router *mux.Router
 	db     Database
+	jwtSecret []byte
 }
 
 type StudentProfile struct {
@@ -40,24 +41,33 @@ type Database interface {
 	UpdateProfile(id string, profile *StudentProfile) error
 	DeleteProfile(id string) error
 
-	//Search Operations
+	// MARK: Search Operations
 	SearchProfiles(filter SearchFilters) ([]StudentProfile, error)
 	GetAllProfiles() ([]StudentProfile, error)
+
+	// MARK: Auth methods goes here
+	CreateUser(user *User) error
+	GetUserByEmail(email string) (User, error)
+	GetUserByID(id string) (User, error)
 }
 
-func NewAPIServer(db Database) *APIServer {
-	server := &APIServer{
-		router: mux.NewRouter(),
-		db:     db,
-	}
-	server.setupRoutes()
-	return server
+func NewAPIServer(db Database, jwtSecret []byte) *APIServer {
+    server := &APIServer{
+        router:    mux.NewRouter(),
+        db:        db,
+        jwtSecret: jwtSecret,
+    }
+    server.setupRoutes()
+    return server
 }
 
 func (s *APIServer) setupRoutes() {
 
 	s.router.Use(middleware.Logger)
     s.router.Use(middleware.CORS)
+
+	s.router.HandleFunc("/api/auth/register", s.handleRegister).Methods("POST")
+    s.router.HandleFunc("/api/auth/login", s.handleLogin).Methods("POST")
 
 	s.router.HandleFunc("/api/profiles", s.handleCreateProfile).Methods("POST")
 	s.router.HandleFunc("/api/profiles", s.handleGetAllProfiles).Methods("GET")
