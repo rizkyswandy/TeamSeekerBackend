@@ -9,7 +9,6 @@ import (
 )
 
 func main() {
-
     err := godotenv.Load()
     if err != nil {
         log.Fatalf("Error loading .env file: %v", err)
@@ -24,8 +23,11 @@ func main() {
 
     server := api.NewAPIServer(db, cfg.JWTSecret)
 
+    //Note: Keep for development
+    // cfg.ServerPort = "3001"
+
     log.Printf("Server starting on port %s", cfg.ServerPort)
-    if err := server.Start(":" + cfg.ServerPort); err != nil {
+    if err := server.Start("0.0.0.0:" + cfg.ServerPort); err != nil {
         log.Fatal(err)
     }
 }

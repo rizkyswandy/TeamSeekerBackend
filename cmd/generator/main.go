@@ -93,7 +93,7 @@ func contains(slice []string, item string) bool {
 }
 
 func main() {
-	connString := "postgres://ilb:@localhost:5432/team_seeker?sslmode=disable"
+	connString := "postgres://pang1:@localhost:5432/team_seeker?sslmode=disable"
 	
 	db, err := postgres.NewPostgresDB(connString)
 	if err != nil {
