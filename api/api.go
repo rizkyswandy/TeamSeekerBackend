@@ -3,9 +3,13 @@ package api
 import (
 	"encoding/json"
 	"net/http"
+    "net"
+	"fmt"
+	"log"
 
 	"github.com/rizkyswandy/TeamSeekerBackend/middleware"
 	"github.com/gorilla/mux"
+	"github.com/rizkyswandy/TeamSeekerBackend/types"
 )
 
 type APIServer struct {
@@ -46,9 +50,9 @@ type Database interface {
 	GetAllProfiles() ([]StudentProfile, error)
 
 	// MARK: Auth methods goes here
-	CreateUser(user *User) error
-	GetUserByEmail(email string) (User, error)
-	GetUserByID(id string) (User, error)
+	CreateUser(user *types.User) error
+	GetUserByEmail(email string) (types.User, error)
+	GetUserByID(id string) (types.User, error)
 }
 
 func NewAPIServer(db Database, jwtSecret []byte) *APIServer {
@@ -77,22 +81,22 @@ func (s *APIServer) setupRoutes() {
 	s.router.HandleFunc("/api/profiles/{id}", s.handleDeleteProfile).Methods("DELETE")
 }
 
-func (s *APIServer) handleCreateProfile(writer http.ResponseWriter, request *http.Request) {
+func (s *APIServer) handleCreateProfile(w http.ResponseWriter, r *http.Request) {
 	var newProfile StudentProfile
-	if err := json.NewDecoder(request.Body).Decode(&newProfile); err != nil {
-		http.Error(writer, "Invalid request body", http.StatusBadRequest)
+	if err := json.NewDecoder(r.Body).Decode(&newProfile); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
 	if err := s.db.CreateProfile(&newProfile); err != nil {
-		http.Error(writer, "Failed to create profile", http.StatusInternalServerError)
+		http.Error(w, "Failed to create profile", http.StatusInternalServerError)
 		return
 	}
 
-	writer.Header().Set("Content-Type", "application/json")
-	writer.WriteHeader(http.StatusCreated)
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusCreated)
 
-	json.NewEncoder(writer).Encode(newProfile)
+	json.NewEncoder(w).Encode(newProfile)
 }
 
 func (s *APIServer) handleGetProfile(w http.ResponseWriter, r *http.Request) {
@@ -147,50 +151,62 @@ func (s *APIServer) handleUpdateProfile(w http.ResponseWriter, r *http.Request) 
     json.NewEncoder(w).Encode(updatedProfile)
 }
 
-func (s *APIServer) handleDeleteProfile(writer http.ResponseWriter, request *http.Request) {
-	vars := mux.Vars(request)
+func (s *APIServer) handleDeleteProfile(w http.ResponseWriter, r *http.Request) {
+	vars := mux.Vars(r)
 	id := vars["id"]
 
 	if id == "" {
-		http.Error(writer, "Profile ID is required", http.StatusBadRequest)
+		http.Error(w, "Profile ID is required", http.StatusBadRequest)
 		return
 	}
 
 	if err := s.db.DeleteProfile(id); err != nil {
-		http.Error(writer, "Failed to delete profile", http.StatusInternalServerError)
+		http.Error(w, "Failed to delete profile", http.StatusInternalServerError)
 		return
 	}
-	writer.WriteHeader(http.StatusNoContent)
+	w.WriteHeader(http.StatusNoContent)
 }
 
-func (s *APIServer) handleGetAllProfiles(writer http.ResponseWriter, request *http.Request) {
+func (s *APIServer) handleGetAllProfiles(w http.ResponseWriter, r *http.Request) {
 	profiles, err := s.db.GetAllProfiles()
 	if err != nil {
-		http.Error(writer, "Failed to fetch profiels!", http.StatusInternalServerError)
+		http.Error(w, "Failed to fetch profiels!", http.StatusInternalServerError)
 		return
 	}
 
-	writer.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(writer).Encode(profiles)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(profiles)
 }
 
-func (s *APIServer) handleSearchProfiles(writer http.ResponseWriter, request *http.Request) {
+func (s *APIServer) handleSearchProfiles(w http.ResponseWriter, r *http.Request) {
 	var filters SearchFilters
-	if err := json.NewDecoder(request.Body).Decode(&filters); err != nil {
-		http.Error(writer, "Invalid request body", http.StatusBadRequest)
+	if err := json.NewDecoder(r.Body).Decode(&filters); err != nil {
+		http.Error(w, "Invalid request body", http.StatusBadRequest)
 		return
 	}
 
 	profiles, err := s.db.SearchProfiles(filters)
 	if err != nil {
-		http.Error(writer, "Failed to search profiles", http.StatusInternalServerError)
+		http.Error(w, "Failed to search profiles", http.StatusInternalServerError)
 		return
 	}
 
-	writer.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(writer).Encode(profiles)
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(profiles)
 }
 
 func (s *APIServer) Start(addr string) error {
-	return http.ListenAndServe(addr, s.router)
+    // Create server with dual-stack support (ipv4 and ipv6 support)
+    server := &http.Server{
+        Addr:    addr,
+        Handler: s.router,
+    }
+    
+    ln, err := net.Listen("tcp4", addr)
+    if err != nil {
+        return fmt.Errorf("failed to create IPv4 listener: %v", err)
+    }
+    
+    log.Printf("Server listening on %s", addr)
+    return server.Serve(ln)
 }

@@ -19,14 +19,14 @@ func LoadConfig() *Config {
 
     dbConnString := os.Getenv("DB_CONN_STRING")
     if dbConnString == "" {
-        dbConnString = "postgres://ilb:@localhost:5432/team_seeker?sslmode=disable"
+        dbConnString = "postgres://pang1@localhost:5432/team_seeker?sslmode=disable"
         log.Println("Warning: Using default database connection. Set DB_CONN_STRING environment variable in production.")
     }
 
     serverPort := os.Getenv("SERVER_PORT")
     if serverPort == "" {
-        serverPort = "8080"
-        log.Println("Using default port 8080")
+        serverPort = "3000"
+        log.Printf("Using default port 3000")
     }
 
     return &Config{

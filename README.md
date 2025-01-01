@@ -30,6 +30,17 @@ CREATE TABLE student_profiles (
     updated_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
 );
 ```
+3. Create users table:
+```sql
+CREATE TABLE users (
+    id UUID PRIMARY KEY,
+    email VARCHAR(255) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    role VARCHAR(50) NOT NULL DEFAULT 'user',
+    created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+);
+```
 
 ## Project Setup
 
@@ -52,25 +63,19 @@ go mod tidy
      ```
     - I didn't setup any password so for me it's: 
     ```go
-    connString := "postgres://ILB:@localhost:5432/team_seeker?sslmode=disable"
+    connString := "postgres://postgres:@localhost:5432/team_seeker?sslmode=disable"
      ```
 
 ## Running the Application
-
-1. Start the server:
 ```bash
 go run cmd/server/main.go
 ```
 
-2. (Optional) Generate test data:
-```bash
-go run cmd/generator/main.go
-```
-Note: Make sure to update the connection string in `cmd/generator/main.go` as well if you use the data generator. Currently it's generating 10000 data in a blink of an eye. I tried to get that 10.000 data in Postman and it's only 65ms.
-
 ## API Endpoints
 
 ### Student Profiles
+- `POST /api/auth/register` - Register new user
+- `POST /api/auth/login` - Login user
 - `POST /api/profiles` - Create new profile
 - `GET /api/profiles` - Get all profiles
 - `GET /api/profiles/{id}` - Get profile by ID
@@ -78,22 +83,12 @@ Note: Make sure to update the connection string in `cmd/generator/main.go` as we
 - `DELETE /api/profiles/{id}` - Delete profile
 - `GET /api/profiles/search` - Search profiles with filters
 
-### Search Filters Example
-```json
-{
-    "faculty": "Computer Science",
-    "skills": ["Go", "PostgreSQL"],
-    "focus": ["Backend Development"],
-    "availability": true
-}
-```
-
 ## Testing
 
 You can test the API using any HTTP client (e.g., Postman, cURL). Example of creating a profile:
 
 ```bash
-curl -X POST http://localhost:8080/api/profiles \
+curl -X POST http://localhost:3001/api/profiles \
   -H "Content-Type: application/json" \
   -d '{
     "name": "John Doe",
@@ -107,18 +102,6 @@ curl -X POST http://localhost:8080/api/profiles \
   }'
 ```
 
-## Troubleshooting
-
-1. Database connection issues:
-   - Verify PostgreSQL is running
-   - Check connection string in `main.go`
-   - Ensure database and table exist
-
-2. Common errors:
-   - "connection refused" - Check if PostgreSQL is running
-   - "role does not exist" - Verify PostgreSQL username
-   - "database does not exist" - Create the database first
-
 ## Project Structure
 ```
 TeamSeeker/
@@ -129,4 +112,10 @@ TeamSeeker/
 ├── internal/
 │   └── database/  # Database implementations
 └── middleware/    # Custom middleware
+└── types/         # Common used type
+```
+
+Current Public Url (it's already static domain):
+```bash
+https://reasonably-proven-quetzal.ngrok-free.app
 ```
