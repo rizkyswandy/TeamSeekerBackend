@@ -103,3 +103,8 @@ TeamSeeker/
 └── middleware/    # Custom middleware
 └── types/         # Common used type
 ```
+
+Current Public Url (it's already static domain):
+```bash
+https://reasonably-proven-quetzal.ngrok-free.app
+```
